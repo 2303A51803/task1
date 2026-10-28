@@ -1,0 +1,218 @@
+CREATE DATABASE emps;
+USE emps;
+
+CREATE TABLE Departments (
+    dept_id INT PRIMARY KEY,
+    dept_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Employees (
+    emp_id INT PRIMARY KEY,
+    emp_name VARCHAR(100) NOT NULL,
+    dept_id INT,
+    salary DECIMAL(10,2),
+    manager_id INT,
+    join_date DATE,
+    FOREIGN KEY (dept_id) REFERENCES Departments(dept_id),
+    FOREIGN KEY (manager_id) REFERENCES Employees(emp_id)
+);
+
+CREATE TABLE Projects (
+    project_id INT PRIMARY KEY,
+    project_name VARCHAR(100) NOT NULL,
+    dept_id INT,
+    budget DECIMAL(12,2),
+    FOREIGN KEY (dept_id) REFERENCES Departments(dept_id)
+);
+
+CREATE TABLE EmployeeProjects (
+    emp_id INT,
+    project_id INT,
+    hours_worked DECIMAL(10,2),
+    PRIMARY KEY (emp_id, project_id),
+    FOREIGN KEY (emp_id) REFERENCES Employees(emp_id),
+    FOREIGN KEY (project_id) REFERENCES Projects(project_id)
+);
+
+CREATE TABLE Orders (
+    order_id INT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    status VARCHAR(30) NOT NULL
+);
+
+INSERT INTO Departments (dept_id, dept_name) VALUES
+(10, 'Engineering'),
+(20, 'Sales'),
+(30, 'HR'),
+(40, 'Research'),
+(50, 'Support'),
+(60, 'Finance');
+
+INSERT INTO Employees
+(emp_id, emp_name, dept_id, salary, manager_id, join_date)
+VALUES
+(101, 'Alice', 10, 120000, NULL, '2021-01-10'),
+(102, 'Bob', 10, 90000, 101, '2022-03-15'),
+(103, 'Charlie', 10, 90000, 101, '2022-06-20'),
+(104, 'David', 10, 70000, 101, '2023-02-10'),
+(201, 'Eve', 20, 110000, NULL, '2020-05-12'),
+(202, 'Frank', 20, 80000, 201, '2022-01-20'),
+(203, 'Grace', 20, 60000, 201, '2023-04-11'),
+(301, 'Henry', 30, 75000, NULL, '2021-08-10'),
+(302, 'Ivy', 30, 50000, 301, '2024-01-15'),
+(401, 'Jack', 40, 100000, NULL, '2020-09-01'),
+(402, 'Kate', 40, 85000, 401, '2022-02-14'),
+(403, 'Leo', 40, 85000, 401, '2022-07-18'),
+(501, 'Mike', 50, 65000, NULL, '2023-03-12');
+
+INSERT INTO Projects
+(project_id, project_name, dept_id, budget)
+VALUES
+(1001, 'Cloud Platform', 10, 500000),
+(1002, 'Mobile Application', 10, 300000),
+(2001, 'Sales Dashboard', 20, 200000),
+(3001, 'Employee Wellness', 30, 150000),
+(4001, 'AI Research', 40, 600000);
+
+INSERT INTO EmployeeProjects
+(emp_id, project_id, hours_worked)
+VALUES
+(101, 1001, 120),
+(102, 1001, 180),
+(103, 1001, 180),
+(104, 1001, 100),
+(101, 1002, 100),
+(102, 1002, 150),
+(103, 1002, 150),
+(104, 1002, 80),
+(201, 2001, 200),
+(202, 2001, 250),
+(203, 2001, 250),
+(301, 3001, 180),
+(302, 3001, 120),
+(401, 4001, 300),
+(402, 4001, 200),
+(403, 4001, 200);
+
+INSERT INTO Orders
+(order_id, customer_id, order_date, amount, status)
+VALUES
+(1, 1, '2026-01-10', 40000, 'COMPLETED'),
+(2, 1, '2026-02-15', 35000, 'COMPLETED'),
+(3, 1, '2026-03-20', 30000, 'COMPLETED'),
+(4, 2, '2026-01-05', 25000, 'COMPLETED'),
+(5, 2, '2026-02-12', 30000, 'COMPLETED'),
+(6, 3, '2026-01-18', 10000, 'COMPLETED'),
+(7, 3, '2026-02-20', 12000, 'COMPLETED'),
+(8, 4, '2026-01-25', 5000, 'COMPLETED'),
+(9, 4, '2026-04-10', 3000, 'COMPLETED'),
+(10, 5, '2026-02-01', 7000, 'COMPLETED'),
+(11, 5, '2026-03-01', 8000, 'COMPLETED'),
+(12, 5, '2026-04-01', 9000, 'COMPLETED'),
+(13, 6, '2026-05-10', 15000, 'COMPLETED'),
+(14, 6, '2026-06-10', 12000, 'COMPLETED'),
+(15, 6, '2026-07-10', 10000, 'COMPLETED'),
+(16, 7, '2026-01-10', 100000, 'CANCELLED'),
+(17, 8, '2026-01-10', 20000, 'COMPLETED'),
+(18, 8, '2026-03-10', 30000, 'COMPLETED');
+
+SELECT
+    d.dept_name,
+    COUNT(e.emp_id) AS employee_count,
+    AVG(e.salary) AS average_salary,
+    MIN(e.salary) AS min_salary,
+    MAX(e.salary) AS max_salary
+FROM Employees e
+LEFT JOIN Departments d
+    ON e.dept_id = d.dept_id
+GROUP BY d.dept_id, d.dept_name;
+
+SELECT dept_id, emp_id, emp_name, salary
+FROM (
+    SELECT
+        e.*,
+        DENSE_RANK() OVER (
+            PARTITION BY dept_id
+            ORDER BY salary DESC
+        ) AS salary_rank
+    FROM Employees e
+) x
+WHERE salary_rank = 2;
+
+SELECT dept_id, emp_name, salary
+FROM Employees e
+WHERE salary > (
+    SELECT AVG(d.salary)
+    FROM Employees d
+    WHERE d.dept_id = e.dept_id
+);
+
+SELECT
+    m.emp_id AS manager_id,
+    m.emp_name AS manager_name,
+    m.salary AS manager_salary,
+    COUNT(e.emp_id) AS direct_report_count,
+    SUM(e.salary) AS team_salary
+FROM Employees m
+JOIN Employees e
+    ON e.manager_id = m.emp_id
+GROUP BY m.emp_id, m.emp_name, m.salary
+HAVING direct_report_count >= 2;
+
+SELECT
+    project_id,
+    project_name,
+    emp_id,
+    emp_name,
+    total_hours
+FROM (
+    SELECT
+        p.project_id,
+        p.project_name,
+        e.emp_id,
+        e.emp_name,
+        SUM(ep.hours_worked) AS total_hours,
+        DENSE_RANK() OVER (
+            PARTITION BY p.project_id
+            ORDER BY SUM(ep.hours_worked) DESC
+        ) AS rnk
+    FROM Projects p
+    JOIN EmployeeProjects ep
+        ON p.project_id = ep.project_id
+    JOIN Employees e
+        ON e.emp_id = ep.emp_id
+    GROUP BY
+        p.project_id,
+        p.project_name,
+        e.emp_id,
+        e.emp_name
+) x
+WHERE rnk <= 2;
+
+SELECT d.dept_id, d.dept_name
+FROM Departments d
+WHERE EXISTS (
+    SELECT 1
+    FROM Employees e
+    WHERE e.dept_id = d.dept_id
+)
+AND NOT EXISTS (
+    SELECT 1
+    FROM Projects p
+    WHERE p.dept_id = d.dept_id
+);
+
+SELECT
+    customer_id,
+    SUM(amount) AS completed_order_value,
+    CASE
+        WHEN SUM(amount) >= 100000 THEN 'platinum'
+        WHEN SUM(amount) >= 50000 THEN 'gold'
+        WHEN SUM(amount) >= 20000 THEN 'silver'
+        ELSE 'bronze'
+    END AS customer_classification
+FROM Orders
+WHERE status = 'COMPLETED'
+GROUP BY customer_id;
